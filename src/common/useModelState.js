@@ -1,15 +1,25 @@
 const React = require('react');
 const throttle = require('lodash.throttle');
+const isEqual = require('lodash.isequal');
 const { useRouteFocused } = require('stremio-router');
 const { useServices } = require('stremio/services');
-const useDeepEqualState = require('stremio/common/useDeepEqualState');
+
+const modelStateReducer = (state, nextState) => {
+    return Object.keys(nextState).reduce((result, propName) => {
+        result[propName] = isEqual(state[propName], nextState[propName]) ?
+            state[propName]
+            :
+            nextState[propName];
+        return result;
+    }, {});
+};
 
 const useModelState = ({ model, init, action, timeout, onNewState, map, mapWithCtx }) => {
     const modelRef = React.useRef(model);
     const mountedRef = React.useRef(false);
     const { core } = useServices();
     const routeFocused = useRouteFocused();
-    const [state, setState] = useDeepEqualState(init);
+    const [state, setState] = React.useReducer(modelStateReducer, null, init);
     React.useLayoutEffect(() => {
         core.dispatch(action, modelRef.current);
     }, [action]);
