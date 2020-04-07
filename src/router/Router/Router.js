@@ -10,37 +10,16 @@ const routeConfigForPath = require('./routeConfigForPath');
 const urlParamsForPath = require('./urlParamsForPath');
 
 const Router = ({ className, onPathNotMatch, ...props }) => {
-    const { homePath, viewsConfig } = React.useMemo(() => ({
-        homePath: props.homePath,
-        viewsConfig: props.viewsConfig
-    }), []);
+    const viewsConfig = React.useMemo(() => props.viewsConfig, []);
     const [views, setViews] = React.useState(() => {
         return Array(viewsConfig.length).fill(null);
     });
     React.useLayoutEffect(() => {
-        if (typeof homePath === 'string') {
-            const { pathname, path } = UrlUtils.parse(window.location.hash.slice(1));
-            if (homePath !== path) {
-                window.location.replace(`#${homePath}`);
-                const routeConfig = typeof pathname === 'string' ?
-                    routeConfigForPath(viewsConfig, pathname)
-                    :
-                    null;
-                if (routeConfig) {
-                    window.location = `#${path}`;
-                }
-            }
-        }
-    }, []);
-    React.useLayoutEffect(() => {
         const onLocationHashChange = () => {
             const { pathname, query } = UrlUtils.parse(window.location.hash.slice(1));
             const queryParams = new URLSearchParams(typeof query === 'string' ? query : '');
-            const routeConfig = typeof pathname === 'string' ?
-                routeConfigForPath(viewsConfig, pathname)
-                :
-                null;
-            if (!routeConfig) {
+            const routeConfig = routeConfigForPath(viewsConfig, typeof pathname === 'string' ? pathname : '');
+            if (routeConfig === null) {
                 if (typeof onPathNotMatch === 'function') {
                     const component = onPathNotMatch();
                     if (ReactIs.isValidElementType(component)) {
@@ -58,7 +37,7 @@ const Router = ({ className, onPathNotMatch, ...props }) => {
                 return;
             }
 
-            const urlParams = urlParamsForPath(routeConfig, pathname);
+            const urlParams = urlParamsForPath(routeConfig, typeof pathname === 'string' ? pathname : '');
             const routeViewIndex = viewsConfig.findIndex((vc) => vc.includes(routeConfig));
             const routeIndex = viewsConfig[routeViewIndex].findIndex((rc) => rc === routeConfig);
             setViews((views) => {
@@ -111,7 +90,6 @@ const Router = ({ className, onPathNotMatch, ...props }) => {
 
 Router.propTypes = {
     className: PropTypes.string,
-    homePath: PropTypes.string,
     onPathNotMatch: PropTypes.func,
     viewsConfig: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.exact({
         regexp: PropTypes.instanceOf(RegExp).isRequired,

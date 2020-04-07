@@ -2,12 +2,13 @@ const React = require('react');
 const PropTypes = require('prop-types');
 const classnames = require('classnames');
 const UrlUtils = require('url');
-const pako = require('pako');
 const Icon = require('stremio-icons/dom');
 const Button = require('stremio/common/Button');
 const Image = require('stremio/common/Image');
 const ModalDialog = require('stremio/common/ModalDialog');
 const SharePrompt = require('stremio/common/SharePrompt');
+const CONSTANTS = require('stremio/common/CONSTANTS');
+const deepLinking = require('stremio/common/deepLinking');
 const routesRegexp = require('stremio/common/routesRegexp');
 const useBinaryState = require('stremio/common/useBinaryState');
 const ActionButton = require('./ActionButton');
@@ -15,8 +16,6 @@ const MetaLinks = require('./MetaLinks');
 const MetaPreviewPlaceholder = require('./MetaPreviewPlaceholder');
 const styles = require('./styles');
 
-const IMDB_LINK_CATEGORY = 'imdb';
-const SHARE_LINK_CATEGORY = 'share';
 const ALLOWED_LINK_REDIRECTS = [
     routesRegexp.search.regexp,
     routesRegexp.discover.regexp,
@@ -30,12 +29,12 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
             links
                 .filter((link) => link && typeof link.category === 'string' && typeof link.url === 'string')
                 .reduce((linksGroups, { category, name, url }) => {
-                    if (category === IMDB_LINK_CATEGORY) {
+                    if (category === CONSTANTS.IMDB_LINK_CATEGORY) {
                         linksGroups[category] = {
                             label: name,
                             href: `https://www.stremio.com/warning#${encodeURIComponent(`https://www.imdb.com/title/${encodeURIComponent(url)}`)}`
                         };
-                    } else if (category === SHARE_LINK_CATEGORY) {
+                    } else if (category === CONSTANTS.SHARE_LINK_CATEGORY) {
                         linksGroups[category] = {
                             label: name,
                             href: url
@@ -65,10 +64,12 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
             [];
     }, [links]);
     const trailerHref = React.useMemo(() => {
-        return typeof trailer === 'object' && trailer !== null ?
-            `#/player/${btoa(pako.deflate(JSON.stringify(trailer), { to: 'string' }))}`
-            :
-            null;
+        if (typeof trailer !== 'object' || trailer === null) {
+            return null;
+        }
+
+        const deepLinks = deepLinking.withStream({ stream: trailer });
+        return deepLinks.player;
     }, [trailer]);
     const renderLogoFallback = React.useMemo(() => () => (
         <Icon className={styles['logo-placeholder-icon']} icon={'ic_broken_link'} />
@@ -96,7 +97,7 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                         null
                 }
                 {
-                    (typeof releaseInfo === 'string' && releaseInfo.length > 0) || (released instanceof Date && !isNaN(released.getTime())) || (typeof runtime === 'string' && runtime.length > 0) || typeof linksGroups[IMDB_LINK_CATEGORY] === 'object' ?
+                    (typeof releaseInfo === 'string' && releaseInfo.length > 0) || (released instanceof Date && !isNaN(released.getTime())) || (typeof runtime === 'string' && runtime.length > 0) || typeof linksGroups[CONSTANTS.IMDB_LINK_CATEGORY] === 'object' ?
                         <div className={styles['runtime-release-info-container']}>
                             {
                                 typeof runtime === 'string' && runtime.length > 0 ?
@@ -114,16 +115,16 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                                         null
                             }
                             {
-                                typeof linksGroups[IMDB_LINK_CATEGORY] === 'object' ?
+                                typeof linksGroups[CONSTANTS.IMDB_LINK_CATEGORY] === 'object' ?
                                     <Button
                                         className={styles['imdb-button-container']}
-                                        title={linksGroups[IMDB_LINK_CATEGORY].label}
-                                        href={linksGroups[IMDB_LINK_CATEGORY].href}
+                                        title={linksGroups[CONSTANTS.IMDB_LINK_CATEGORY].label}
+                                        href={linksGroups[CONSTANTS.IMDB_LINK_CATEGORY].href}
                                         target={'_blank'}
                                         {...(compact ? { tabIndex: -1 } : null)}
                                     >
                                         <Icon className={styles['icon']} icon={'ic_imdbnoframe'} />
-                                        <div className={styles['label']}>{linksGroups[IMDB_LINK_CATEGORY].label}</div>
+                                        <div className={styles['label']}>{linksGroups[CONSTANTS.IMDB_LINK_CATEGORY].label}</div>
                                     </Button>
                                     :
                                     null
@@ -149,8 +150,8 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                 {
                     Object.keys(linksGroups)
                         .filter((category) => {
-                            return category !== IMDB_LINK_CATEGORY &&
-                                category !== SHARE_LINK_CATEGORY;
+                            return category !== CONSTANTS.IMDB_LINK_CATEGORY &&
+                                category !== CONSTANTS.SHARE_LINK_CATEGORY;
                         })
                         .map((category, index) => (
                             <MetaLinks
@@ -188,7 +189,7 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                         null
                 }
                 {
-                    !compact && typeof linksGroups[SHARE_LINK_CATEGORY] === 'object' ?
+                    typeof linksGroups[CONSTANTS.SHARE_LINK_CATEGORY] === 'object' ?
                         <React.Fragment>
                             <ActionButton
                                 className={styles['action-button']}
@@ -202,7 +203,7 @@ const MetaPreview = ({ className, compact, name, logo, background, runtime, rele
                                     <ModalDialog title={'Share'} onCloseRequest={closeShareModal}>
                                         <SharePrompt
                                             className={styles['share-prompt']}
-                                            url={linksGroups[SHARE_LINK_CATEGORY].href}
+                                            url={linksGroups[CONSTANTS.SHARE_LINK_CATEGORY].href}
                                         />
                                     </ModalDialog>
                                     :
